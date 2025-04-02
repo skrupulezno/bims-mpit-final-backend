@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  user
+}
+
+enum CompanyType {
+  Obshchepit @map("общепит")
+  Uslugi     @map("услуги")
+  Nedvizhimost @map("недвижимость")
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+enum ComponentDataType {
+  text
+  number
+  date
+  time
+  select
+}
+
+enum ServiceAvailabilityStatus {
+  free
+  occupied
+}
+
+model User {
+  id         Int      @id @default(autoincrement()) @map("user_id")
+  username   String   @unique
+  email      String   @unique
+  password   String   @map("password_hash")
+  createdAt  DateTime @default(now()) @map("created_at")
+  role       UserRole @default(user)
+
+  companies  Company[]
+  
+  @@map("users")
+}
+
+model Company {
+  id          Int           @id @default(autoincrement()) @map("company_id")
+  userId      Int           @map("user_id")
+  name        String
+  description String?
+  logo        String?
+  city        String
+  address     String
+  type        CompanyType
+  startTime   String?       @map("start_time") // храним время как строку (например, "09:00:00")
+  endTime     String?       @map("end_time")
+  phone       String?
+  email       String?
+  website     String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  user        User          @relation(fields: [userId], references: [id])
+  services    Service[]
+  socials     CompanySocialLink[]
+  images      CompanyImage[]
+  bookings    Booking[]
+
+  @@map("companies")
+}
+
+model ComponentLibrary {
+  id                Int               @id @default(autoincrement()) @map("component_id")
+  name              String
+  dataType          ComponentDataType @map("data_type")
+  optionsSourceType String?           @map("options_source_type")
+  
+  serviceComponents ServiceComponent[]
+
+  @@map("component_library")
+}
+
+model OptionSource {
+  id          Int      @id @default(autoincrement()) @map("option_id")
+  type        String
+  name        String
+  description String?
+  image       String?
+
+  // Для индекса по типу:
+  @@index([type], name: "idx_options_type")
+  @@map("options_source")
+}
+
+model Service {
+  id          Int       @id @default(autoincrement()) @map("service_id")
+  name        String
+  description String?
+  companyId   Int       @map("company_id")
+
+  company     Company   @relation(fields: [companyId], references: [id])
+  components  ServiceComponent[]
+  availabilities ServiceAvailability[]
+  bookings    Booking[]
+
+  @@map("services")
+}
+
+model ServiceComponent {
+  serviceId   Int       @map("service_id")
+  componentId Int       @map("component_id")
+  stepOrder   Int       @map("step_order")
+  isRequired  Boolean   @default(false) @map("is_required")
+
+  service     Service         @relation(fields: [serviceId], references: [id])
+  component   ComponentLibrary @relation(fields: [componentId], references: [id])
+  answers     ServiceComponentAnswer[]
+
+  @@id([serviceId, componentId])
+  @@index([componentId], name: "idx_service_components_component")
+  @@map("service_components")
+}
+
+model ServiceAvailability {
+  id         Int                        @id @default(autoincrement()) @map("availability_id")
+  serviceId  Int                        @map("service_id")
+  date       DateTime                   // используем DateTime для даты; время можно хранить отдельно
+  startTime  String                     @map("start_time") // время в виде строки, например, "10:00:00"
+  endTime    String                     @map("end_time")
+  status     ServiceAvailabilityStatus  @default(free)
+
+  service    Service                    @relation(fields: [serviceId], references: [id])
+  answers    ServiceComponentAnswer[]
+
+  @@unique([serviceId, date, startTime], name: "uq_service_slot")
+  @@index([serviceId], name: "idx_availability_service")
+  @@map("service_availability")
+}
+
+model ServiceComponentAnswer {
+  availabilityId  Int   @map("availability_id")
+  serviceId       Int   @map("service_id")
+  componentId     Int   @map("component_id")
+  answerValue     String?  @map("answer_value")
+  answerOptionId  Int?     @map("answer_option_id")
+
+  serviceAvailability ServiceAvailability @relation(fields: [availabilityId], references: [id])
+  serviceComponent    ServiceComponent    @relation(fields: [serviceId, componentId], references: [serviceId, componentId])
+  option              OptionSource?       @relation(fields: [answerOptionId], references: [id])
+
+  @@id([availabilityId, componentId])
+  @@map("service_component_answers")
+}
+
+model CompanySocialLink {
+  id        Int    @id @default(autoincrement()) @map("link_id")
+  companyId Int    @map("company_id")
+  platform  String
+  url       String
+
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@map("company_social_links")
+}
+
+model CompanyImage {
+  id         Int      @id @default(autoincrement()) @map("image_id")
+  companyId  Int      @map("company_id")
+  imagePath  String   @map("image_path")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  company    Company  @relation(fields: [companyId], references: [id])
+
+  @@map("company_images")
+}
+
+model TelegramClient {
+  id             Int      @id @default(autoincrement()) @map("client_id")
+  telegramUserId BigInt   @unique @map("telegram_user_id")
+  username       String?
+  firstName      String   @map("first_name")
+  lastName       String?  @map("last_name")
+  phone          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  bookings       Booking[]
+
+  @@map("telegram_clients")
+}
+
+model Booking {
+  id          Int            @id @default(autoincrement()) @map("booking_id")
+  clientId    Int            @map("client_id")
+  companyId   Int            @map("company_id")
+  serviceId   Int?           @map("service_id") // ON DELETE SET NULL требует, чтобы поле было опциональным
+  bookingDate DateTime       @map("booking_date")
+  status      BookingStatus  @default(pending)
+  notes       String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  client      TelegramClient @relation(fields: [clientId], references: [id])
+  company     Company        @relation(fields: [companyId], references: [id])
+  service     Service?       @relation(fields: [serviceId], references: [id])
+
+  @@map("bookings")
+}
