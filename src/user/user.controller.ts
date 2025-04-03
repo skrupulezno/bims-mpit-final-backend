@@ -1,32 +1,20 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Put,
-  UsePipes,
-  ValidationPipe
-} from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CurrentUser } from 'src/auth/decorators/user.decorator';
-import { Auth } from 'src/auth/decorators/auth.decorator';
-import { UserDto } from './user.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { UpdateProfileDto } from './user.dto';
 
-@Controller('user/profile')
+@Controller('users')
+@UseGuards(JwtAuthGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private userService: UserService) {}
 
-  @Get()
-  @Auth()
-  async profile(@CurrentUser('id') id: string) {
-    return this.userService.getProfile(id);
+  @Get('me')
+  async getProfile(@Req() req: any) {
+    return this.userService.getProfile(req.user.id);
   }
 
-  @UsePipes(new ValidationPipe())
-  @HttpCode(200)
-  @Put()
-  @Auth()
-  async updateProfile(@CurrentUser('id') id: string, @Body() dto: UserDto) {
-    return this.userService.update(id, dto);
+  @Patch('me')
+  async updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
+    return this.userService.updateProfile(req.user.id, dto);
   }
 }

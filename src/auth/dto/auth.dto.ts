@@ -1,12 +1,30 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
-export class AuthDto {
+export class RegisterDto {
   @IsEmail()
   email: string;
-
-  @MinLength(6, {
-    message: 'Password must be at least 6 characters long'
-  })
-  @IsString()
+  
+  @IsNotEmpty()
   password: string;
+  
+  @IsString()
+  name?: string;
+}
+
+export class LoginDto {
+  @IsEmail()
+  email: string;
+  
+  @IsNotEmpty()
+  password: string;
+}
+
+export class TelegramLoginDto {
+  @IsNotEmpty()
+  initData: string;
+}
+
+export class RefreshTokenDto {
+  @IsNotEmpty()
+  refreshToken: string;
 }

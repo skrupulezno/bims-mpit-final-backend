@@ -1,115 +1,126 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException
-} from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { verify } from 'argon2';
-import { Response } from 'express';
-import { UserService } from 'src/user/user.service';
-import { AuthDto } from './dto/auth.dto';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, JWT_ACCESS_EXPIRES, JWT_REFRESH_EXPIRES, TELEGRAM_BOT_TOKEN } from './auth.constants';
+import { RegisterDto, LoginDto, TelegramLoginDto } from './dto/auth.dto';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
-  EXPIRE_DAY_REFRESH_TOKEN = 1;
-  REFRESH_TOKEN_NAME = 'refreshToken';
+  constructor(private prisma: PrismaService, private jwtService: JwtService) {}
 
-  constructor(
-    private jwt: JwtService,
-    private userService: UserService
-  ) {}
-
-  async login(dto: AuthDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...user } = await this.validateUser(dto);
-    const tokens = this.issueTokens(user.id);
-
-    return {
-      user,
-      ...tokens
-    };
-  }
-
-  async register(dto: AuthDto) {
-    const oldUser = await this.userService.getByEmail(dto.email);
-
-    if (oldUser) throw new BadRequestException('User already exists');
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...user } = await this.userService.create(dto);
-
-    const tokens = this.issueTokens(user.id);
-
-    return {
-      user,
-      ...tokens
-    };
-  }
-
-  async getNewTokens(refreshToken: string) {
-    const result = await this.jwt.verifyAsync(refreshToken);
-    if (!result) throw new UnauthorizedException('Invalid refresh token');
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...user } = await this.userService.getById(result.id);
-
-    const tokens = this.issueTokens(user.id);
-
-    return {
-      user,
-      ...tokens
-    };
-  }
-
-  private issueTokens(userId: string) {
-    const data = { id: userId };
-
-    const accessToken = this.jwt.sign(data, {
-      expiresIn: '1h'
+  async register(dto: RegisterDto) {
+    const { email, password, name } = dto;
+    // Check if email is already taken
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new BadRequestException('Email is already in use');
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // Determine role: first user becomes admin, others default to user
+    let role: Role = Role.USER;
+    const usersCount = await this.prisma.user.count();
+    if (usersCount === 0) {
+      role = 'ADMIN';
+    }
+    const user = await this.prisma.user.create({
+      data: { email, passwordHash: hashedPassword, name, role },
     });
+    return this.generateTokens(user.id, user.role);
+  }
 
-    const refreshToken = this.jwt.sign(data, {
-      expiresIn: '7d'
+  async login(dto: LoginDto) {
+    const { email, password } = dto;
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const pwMatches = user.passwordHash && (await bcrypt.compare(password, user.passwordHash));
+    if (!pwMatches) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return this.generateTokens(user.id, user.role);
+  }
+
+  async loginWithTelegram(dto: TelegramLoginDto) {
+    const { initData } = dto;
+    // Validate Telegram initData signature
+    const params = new URLSearchParams(initData);
+    const dataObj: { [key: string]: string } = {};
+    for (const [key, value] of params.entries()) {
+      dataObj[key] = value;
+    }
+    const telegramHash = dataObj['hash'];
+    if (!telegramHash) {
+      throw new BadRequestException('Missing hash in Telegram data');
+    }
+    delete dataObj['hash'];
+    // Build the data-check string
+    const checkString = Object.keys(dataObj)
+      .sort()
+      .map(key => `${key}=${dataObj[key]}`)
+      .join('\n');
+    // Compute secret key using bot token
+    const secretKey = crypto.createHmac('sha256', 'WebAppData')
+      .update(TELEGRAM_BOT_TOKEN)
+      .digest();
+    const computedHash = crypto.createHmac('sha256', secretKey)
+      .update(checkString)
+      .digest('hex');
+    if (computedHash !== telegramHash) {
+      throw new UnauthorizedException('Invalid Telegram data signature');
+    }
+    // Parse user information
+    let telegramUser;
+    try {
+      telegramUser = dataObj['user'] ? JSON.parse(dataObj['user']) : null;
+    } catch {
+      throw new BadRequestException('Invalid Telegram user data');
+    }
+    if (!telegramUser || !telegramUser.id) {
+      throw new BadRequestException('Telegram user data not provided');
+    }
+    const telegramId = BigInt(telegramUser.id);
+    // Find or create user by Telegram ID
+    let user = await this.prisma.user.findUnique({ where: { telegramId } });
+    if (!user) {
+      const fullName = telegramUser.last_name 
+        ? `${telegramUser.first_name} ${telegramUser.last_name}` 
+        : telegramUser.first_name;
+      user = await this.prisma.user.create({
+        data: { telegramId, name: fullName, role: 'TELEGRAM_CLIENT' },
+      });
+    }
+    return this.generateTokens(user.id, user.role);
+  }
+
+  async refreshTokens(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify(refreshToken, { secret: JWT_REFRESH_SECRET });
+      const userId = payload.sub || payload.id;
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw new UnauthorizedException('User no longer exists');
+      }
+      // (In a real app, verify token is not blacklisted or rotated)
+      return this.generateTokens(user.id, user.role);
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  private generateTokens(userId: number, role: string) {
+    const payload = { sub: userId, role };
+    const accessToken = this.jwtService.sign(payload, {
+      secret: JWT_ACCESS_SECRET,
+      expiresIn: JWT_ACCESS_EXPIRES,
     });
-
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: JWT_REFRESH_SECRET,
+      expiresIn: JWT_REFRESH_EXPIRES,
+    });
     return { accessToken, refreshToken };
-  }
-
-  private async validateUser(dto: AuthDto) {
-    const user = await this.userService.getByEmail(dto.email);
-
-    if (!user) throw new NotFoundException('User not found');
-
-    const isValid = await verify(user.password, dto.password);
-
-    if (!isValid) throw new UnauthorizedException('Invalid password');
-
-    return user;
-  }
-
-  addRefreshTokenToResponse(res: Response, refreshToken: string) {
-    const expiresIn = new Date();
-    expiresIn.setDate(expiresIn.getDate() + this.EXPIRE_DAY_REFRESH_TOKEN);
-
-    res.cookie(this.REFRESH_TOKEN_NAME, refreshToken, {
-      httpOnly: true,
-      domain: 'localhost',
-      expires: expiresIn,
-      secure: true,
-      // lax if production
-      sameSite: 'none'
-    });
-  }
-
-  removeRefreshTokenFromResponse(res: Response) {
-    res.cookie(this.REFRESH_TOKEN_NAME, '', {
-      httpOnly: true,
-      domain: 'localhost',
-      expires: new Date(0),
-      secure: true,
-      // lax if production
-      sameSite: 'none'
-    });
   }
 }

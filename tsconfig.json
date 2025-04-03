@@ -16,8 +16,13 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@prisma/*": ["prisma/*"],
+      "@auth/*": ["auth/*"],
+      "@user/*": ["user/*"]
+    }
   },
-  "include": ["src/**/*.ts", "webpack.config.js"],
+  "include": ["src/**/*.ts", "webpack.config.js", "src/prisma/prisma.module.ts"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }
