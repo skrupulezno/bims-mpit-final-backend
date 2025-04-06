@@ -3,7 +3,7 @@ name: Deploy via SSH - Git pull, npm run build and deploy
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
