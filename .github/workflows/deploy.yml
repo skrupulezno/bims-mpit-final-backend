@@ -21,6 +21,5 @@ jobs:
             echo "Connecting to $REMOTE_HOST as $REMOTE_USER"
             cd bims-mpit-final-backend
             git pull origin master
-            docker build -t my-app .
-            docker run -p 8080:8080 my-app
+
 
