@@ -7,12 +7,25 @@ export class CompanyService {
   constructor(private prisma: PrismaService) {}
 
   async createCompany(dto: CreateCompanyDto, userId: number) {
-    // Создать новую компанию и привязать текущего пользователя как ADMIN
+    // Создаем компанию с новыми полями и привязываем текущего пользователя как ADMIN
     const company = await this.prisma.company.create({
       data: {
         name: dto.name,
         description: dto.description,
         businessType: dto.businessType as any,
+        businessTerm: dto.businessTerm,
+        city: dto.city,
+        street: dto.street,
+        workTime: dto.workTime,
+        holidays: dto.holidays,
+        descriptionAI: dto.descriptionAI,
+        logo: dto.logo,
+        calendar: dto.calendar,
+        analytics: dto.analytics,
+        telegram: dto.telegram,
+        aiText: dto.aiText,
+        socials: dto.socials,
+        delivery: dto.delivery,
         members: {
           create: [
             {
@@ -27,7 +40,7 @@ export class CompanyService {
   }
 
   async updateCompany(companyId: number, dto: UpdateCompanyDto, userId: number) {
-    // Проверить права: только админ компании может обновлять информацию
+    // Проверяем, что пользователь является администратором компании
     const member = await this.prisma.companyMember.findUnique({
       where: { userId_companyId: { userId, companyId } }
     });
@@ -38,26 +51,39 @@ export class CompanyService {
       where: { id: companyId },
       data: {
         name: dto.name,
-        description: dto.description
+        description: dto.description,
+        businessTerm: dto.businessTerm,
+        city: dto.city,
+        street: dto.street,
+        workTime: dto.workTime,
+        holidays: dto.holidays,
+        descriptionAI: dto.descriptionAI,
+        logo: dto.logo,
+        calendar: dto.calendar,
+        analytics: dto.analytics,
+        telegram: dto.telegram,
+        aiText: dto.aiText,
+        socials: dto.socials,
+        delivery: dto.delivery,
       }
     });
     return company;
   }
 
   async addStaff(companyId: number, dto: AddStaffDto, userId: number) {
-    // Проверить, что запрашивающий пользователь - админ компании
+    // Проверяем, что запрашивающий пользователь является администратором компании
     const member = await this.prisma.companyMember.findUnique({
       where: { userId_companyId: { userId, companyId } }
     });
     if (!member || member.role !== 'ADMIN') {
       throw new ForbiddenException('Недостаточно прав для добавления сотрудников');
     }
-    // Проверить, что добавляемый пользователь существует
+    // Проверяем, что пользователь, которого нужно добавить, существует
     const userToAdd = await this.prisma.user.findUnique({ where: { id: dto.userId } });
     if (!userToAdd) {
       throw new NotFoundException('Пользователь с таким ID не найден');
     }
-    // Создать связь CompanyMember (или обновить роль, если уже есть запись)
+    // Создаем или обновляем запись CompanyMember
     const memberRecord = await this.prisma.companyMember.upsert({
       where: { userId_companyId: { userId: dto.userId, companyId } },
       create: {
@@ -78,7 +104,6 @@ export class CompanyService {
       where: { userId, role: 'ADMIN' },
       select: { companyId: true }
     });
-    // Извлекаем только идентификаторы компаний
     return memberships.map(m => m.companyId);
   }
   
@@ -97,13 +122,11 @@ export class CompanyService {
   }
 
   async getUserCompanies(userId: number) {
-    // Получаем все записи членства пользователя в компаниях
     const memberships = await this.prisma.companyMember.findMany({
       where: { userId },
       include: { company: true },
     });
   
-    // Фильтруем компании по ролям
     const adminCompanies = memberships
       .filter(member => member.role === 'ADMIN')
       .map(member => member.company);
@@ -115,5 +138,3 @@ export class CompanyService {
     return { adminCompanies, memberCompanies };
   }
 }
-
-
