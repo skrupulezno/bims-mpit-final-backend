@@ -20,7 +20,7 @@ WORKDIR /usr/src/app
 # Копируем только необходимые файлы для запуска
 COPY package*.json ./
 # Устанавливаем только production зависимости
-RUN npm install --production
+RUN npm install
 
 # Копируем скомпилированное приложение и, если требуется, папку с миграциями или конфигурацией Prisma
 COPY --from=builder /usr/src/app/dist ./dist
