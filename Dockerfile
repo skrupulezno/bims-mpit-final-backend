@@ -14,13 +14,22 @@ RUN npx prisma generate
 RUN npm run build
 
 # Этап продакшн
-FROM node:16-alpine
+FROM node:20-alpine
 WORKDIR /usr/src/app
 
-# Копируем все файлы из builder-этапа
-COPY --from=builder /usr/src/app ./
+# Копируем только необходимые файлы для запуска
+COPY package*.json ./
+# Устанавливаем только production зависимости
+RUN npm install --production
 
-# Открываем нужный порт (укажите нужный порт, например 3000)
+# Копируем скомпилированное приложение и, если требуется, папку с миграциями или конфигурацией Prisma
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/prisma ./prisma
+
+# Если используются переменные окружения, не забудьте добавить файл .env
+# COPY .env .env
+
+# Открываем нужный порт
 EXPOSE 8080
 
 # Команда для запуска приложения в режиме продакшн
