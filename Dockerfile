@@ -1,5 +1,5 @@
 # Этап сборки (builder)
-FROM node:16-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
 # Копируем файлы package.json и package-lock.json
