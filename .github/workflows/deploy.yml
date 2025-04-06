@@ -22,4 +22,4 @@ jobs:
             cd bims-mpit-final-backend
             git pull origin master
             npm install
-            npm start:prod
+            npm run start:prod
