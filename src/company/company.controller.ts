@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { CompanyService } from './company.service';
 import { CreateCompanyDto, UpdateCompanyDto, AddStaffDto } from './company.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
@@ -30,9 +30,16 @@ export class CompanyController {
     return { message: 'Сотрудник добавлен в компанию' };
   }
 
-  @Get(':id')
+  @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getCompany(@Param('id') id: number) {
-    return this.companyService.getCompanyById(Number(id));
+  async getMyCompanies(@Req() req) {
+    const userId = req.user.id;
+    return this.companyService.getMyCompanies2(userId);
   }
+
+  @Get(':id')
+  async getCompanyById(@Param('id', ParseIntPipe) companyId: number) {
+    return this.companyService.getCompanyById(companyId);
+  }
+  
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCompanyDto, UpdateCompanyDto, AddStaffDto } from './company.dto';
 
@@ -71,14 +71,49 @@ export class CompanyService {
     });
     return memberRecord;
   }
-
+  
+  async getMyCompanies2(userId: number): Promise<number[]> {
+    // Находим записи, где пользователь является администратором компании
+    const memberships = await this.prisma.companyMember.findMany({
+      where: { userId, role: 'ADMIN' },
+      select: { companyId: true }
+    });
+    // Извлекаем только идентификаторы компаний
+    return memberships.map(m => m.companyId);
+  }
+  
   async getCompanyById(companyId: number) {
-    // Получить информацию о компании (для каталога или внутреннего использования)
+    if (!companyId) {
+      throw new BadRequestException('companyId is required');
+    }
+  
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      include: { branches: true, members: true }
+      include: { branches: true, members: true },
     });
+  
     if (!company) throw new NotFoundException('Компания не найдена');
     return company;
   }
+
+  async getUserCompanies(userId: number) {
+    // Получаем все записи членства пользователя в компаниях
+    const memberships = await this.prisma.companyMember.findMany({
+      where: { userId },
+      include: { company: true },
+    });
+  
+    // Фильтруем компании по ролям
+    const adminCompanies = memberships
+      .filter(member => member.role === 'ADMIN')
+      .map(member => member.company);
+  
+    const memberCompanies = memberships
+      .filter(member => member.role === 'STAFF')
+      .map(member => member.company);
+  
+    return { adminCompanies, memberCompanies };
+  }
 }
+
+
