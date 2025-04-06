@@ -17,7 +17,7 @@ export class RegisterBusinessDto extends RegisterUserDto {
   companyName: string;
 
   @IsNotEmpty()
-  businessType: string;  // Expect values like "BARBERSHOP" or "RESTAURANT"
+  businessType: string;  
 }
 
 export class LoginDto {

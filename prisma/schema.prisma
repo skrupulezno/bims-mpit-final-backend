@@ -15,6 +15,7 @@ enum CompanyRole {
 enum BusinessType {
   BARBERSHOP
   RESTAURANT
+  RETAIL
 }
 
 enum ComponentType {
@@ -97,7 +98,7 @@ model Table {
   branch   Branch @relation(fields: [branchId], references: [id])
   branchId Int
 
-  bookings Booking[] // 👈 Добавить это
+  bookings Booking[] 
 }
 
 model Service {

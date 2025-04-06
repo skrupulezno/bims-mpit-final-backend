@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { RegisterUserDto, RegisterBusinessDto, LoginDto } from './dto/auth.dto';
+import { JWT_ACCESS_EXPIRES, JWT_ACCESS_SECRET, JWT_REFRESH_EXPIRES, JWT_REFRESH_SECRET } from './auth.constants';
 
 @Injectable()
 export class AuthService {
@@ -63,16 +64,55 @@ export class AuthService {
     return pwMatches ? user : null;
   }
 
+ 
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto.email, dto.password);
     if (!user) {
       throw new UnauthorizedException('Неверные учетные данные');
     }
-    // Генерируем JWT-токен
     const payload = { sub: user.id, email: user.email };
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: JWT_ACCESS_SECRET,
+      expiresIn: JWT_ACCESS_EXPIRES,
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: JWT_REFRESH_SECRET,
+      expiresIn: JWT_REFRESH_EXPIRES,
+    });
+
     return {
-      accessToken: this.jwtService.sign(payload),
+      accessToken,
+      refreshToken,
       user: { id: user.id, email: user.email, name: user.name },
     };
+  }
+  
+
+  async refresh(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: JWT_REFRESH_SECRET,
+      });
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      if (!user) {
+        throw new UnauthorizedException('Пользователь не найден');
+      }
+      const newPayload = { sub: user.id, email: user.email };
+  
+      const newAccessToken = this.jwtService.sign(newPayload, {
+        secret: JWT_ACCESS_SECRET,
+        expiresIn: JWT_ACCESS_EXPIRES,
+      });
+      const newRefreshToken = this.jwtService.sign(newPayload, {
+        secret: JWT_REFRESH_SECRET,
+        expiresIn: JWT_REFRESH_EXPIRES,
+      });
+  
+      return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+    } catch (error) {
+      throw new UnauthorizedException('Неверный refresh token');
+    }
   }
 }

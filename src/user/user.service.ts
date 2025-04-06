@@ -8,19 +8,27 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async getProfile(userId: number) {
-    // Retrieve user profile without sensitive fields
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         email: true,
         name: true,
-        role: true,
-        telegramId: true,
-        organization: { select: { id: true, name: true } }
-      }
+        memberships: {
+          select: {
+            role: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
+  
 
   async updateProfile(userId: number, dto: UpdateProfileDto) {
     const data: any = {};
@@ -40,11 +48,20 @@ export class UserService {
         id: true,
         email: true,
         name: true,
-        role: true,
-        telegramId: true,
-        organization: { select: { id: true, name: true } }
-      }
+        memberships: {
+          select: {
+            role: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
     return updated;
   }
+  
 }
