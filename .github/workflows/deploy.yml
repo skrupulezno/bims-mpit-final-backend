@@ -22,5 +22,6 @@ jobs:
             cd bims-mpit-final-backend
             git pull origin master
             npm install
+            npx prisma generate
             npm run build
             npm run start:prod
