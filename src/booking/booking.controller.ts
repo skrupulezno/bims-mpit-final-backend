@@ -1,22 +1,31 @@
-import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { BookingService } from './booking.service';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { CreateBookingDto } from './booking.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 
 @Controller('bookings')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingController {
   constructor(private bookingService: BookingService) {}
 
   @Post()
-  @Roles('TELEGRAM_CLIENT')
-  async createBooking(@Req() req: any, @Body('serviceId') serviceId: number) {
-    return this.bookingService.create(serviceId, req.user.id);
+  @UseGuards(JwtAuthGuard)
+  async createBooking(@Body() dto: CreateBookingDto, @Req() req) {
+    const userId = req.user.id;
+    const booking = await this.bookingService.createBooking(userId, dto);
+    return { message: 'Бронирование успешно создано', bookingId: booking.id };
   }
 
-  @Get()
-  async getBookings(@Req() req: any) {
-    return this.bookingService.findAllForUser(req.user);
+  @Get('branches/:branchId')
+  @UseGuards(JwtAuthGuard)
+  async getBranchBookings(@Param('branchId') branchId: string, @Req() req) {
+    const userId = req.user.id;
+    return this.bookingService.getBookingsForBranch(Number(branchId), userId);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getMyBookings(@Req() req) {
+    const userId = req.user.id;
+    return this.bookingService.getMyBookings(userId);
   }
 }

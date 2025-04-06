@@ -1,30 +1,29 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 
-export class RegisterDto {
+export class RegisterUserDto {
   @IsEmail()
   email: string;
-  
+
   @IsNotEmpty()
+  @MinLength(6)
   password: string;
-  
-  @IsString()
-  name?: string;
+
+  @IsNotEmpty()
+  name: string;
+}
+
+export class RegisterBusinessDto extends RegisterUserDto {
+  @IsNotEmpty()
+  companyName: string;
+
+  @IsNotEmpty()
+  businessType: string;  // Expect values like "BARBERSHOP" or "RESTAURANT"
 }
 
 export class LoginDto {
   @IsEmail()
   email: string;
-  
+
   @IsNotEmpty()
   password: string;
-}
-
-export class TelegramLoginDto {
-  @IsNotEmpty()
-  initData: string;
-}
-
-export class RefreshTokenDto {
-  @IsNotEmpty()
-  refreshToken: string;
 }

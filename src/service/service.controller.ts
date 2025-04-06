@@ -1,23 +1,40 @@
-import { Controller, Post, Get, Body, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { ServiceService } from './service.service';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { CreateServiceDto, AddComponentDto, CreateCustomFieldDto } from './service.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 
-@Controller('services')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('branches/:branchId/services')
 export class ServiceController {
   constructor(private serviceService: ServiceService) {}
 
   @Post()
-  @Roles('ADMIN')
-  async createService(@Body('name') name: string, @Body('organizationId') organizationId: number) {
-    return this.serviceService.create(name, organizationId);
+  @UseGuards(JwtAuthGuard)
+  async createService(@Param('branchId') branchId: string, @Body() dto: CreateServiceDto, @Req() req) {
+    const userId = req.user.id;
+    return this.serviceService.createService(Number(branchId), dto, userId);
   }
 
   @Get()
-  async getServices(@Req() req: any, @Query('organizationId') orgId?: string) {
-    const orgIdNum = orgId ? parseInt(orgId) : undefined;
-    return this.serviceService.findAllForUser(req.user, orgIdNum);
+  @UseGuards(JwtAuthGuard)
+  async listServices(@Param('branchId') branchId: string, @Req() req) {
+    // Можно позволить и неавторизованным пользователям видеть услуги (каталог), 
+    // но если этот маршрут планируется только для админки, можно требовать JWT.
+    return this.serviceService.getServicesByBranch(Number(branchId));
+  }
+
+  @Post(':serviceId/components')
+  @UseGuards(JwtAuthGuard)
+  async addComponent(@Param('branchId') branchId: string, @Param('serviceId') serviceId: string,
+                     @Body() dto: AddComponentDto, @Req() req) {
+    const userId = req.user.id;
+    return this.serviceService.addComponent(Number(serviceId), dto, userId);
+  }
+
+  @Post(':serviceId/custom-fields')
+  @UseGuards(JwtAuthGuard)
+  async addCustomField(@Param('branchId') branchId: string, @Param('serviceId') serviceId: string,
+                       @Body() dto: CreateCustomFieldDto, @Req() req) {
+    const userId = req.user.id;
+    return this.serviceService.addCustomField(Number(serviceId), dto, userId);
   }
 }
