@@ -1,28 +1,9 @@
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { Module } from '@nestjs/common';
+import { CompanyService } from './company.service';
+import { CompanyController } from './company.controller';
 
-export class CreateCompanyDto {
-  @IsNotEmpty()
-  name: string;
-
-  @IsNotEmpty()
-  businessType: string; // BusinessType enum as string
-
-  @IsOptional()
-  description?: string;
-}
-
-export class UpdateCompanyDto {
-  @IsOptional()
-  name?: string;
-
-  @IsOptional()
-  description?: string;
-}
-
-export class AddStaffDto {
-  @IsNotEmpty()
-  userId: number;
-
-  @IsNotEmpty()
-  role: string; // expected "STAFF" or "ADMIN"
-}
+@Module({
+  controllers: [CompanyController],
+  providers: [CompanyService]
+})
+export class CompnayModule {}
