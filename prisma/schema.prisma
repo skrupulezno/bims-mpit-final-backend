@@ -41,6 +41,7 @@ model User {
   email        String          @unique
   passwordHash String
   name         String?
+  tg_id        Int?            @unique
   memberships  CompanyMember[]
   bookings     Booking[]
   Master       Master[]
