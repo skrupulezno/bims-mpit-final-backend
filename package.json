@@ -27,6 +27,8 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.0.0",
+    "@prisma/client": "^6.5.0",
+    "@telegram-apps/init-data-node": "^2.0.3",
     "@types/eslint": "^9.6.0",
     "argon2": "^0.40.3",
     "bcrypt": "^5.1.1",
@@ -35,11 +37,11 @@
     "connect-history-api-fallback": "^2.0.0",
     "cookie-parser": "^1.4.6",
     "date-fns": "^3.6.0",
+    "fastify": "^5.2.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.1",
-    "@prisma/client": "^6.5.0"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

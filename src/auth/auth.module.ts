@@ -5,6 +5,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { JWT_ACCESS_SECRET } from './auth.constants';
 import { AuthController } from './auth.controller';
+import { UserModule  } from '../user/user.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AuthController } from './auth.controller';
       secret: JWT_ACCESS_SECRET,
       signOptions: { expiresIn: '60m' },
     }),
+    UserModule
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService, JwtStrategy],
