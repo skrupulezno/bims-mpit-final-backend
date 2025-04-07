@@ -7,7 +7,6 @@ import { BookingModule } from './booking/booking.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { BranchModule } from './branch/branch.module';
 import { CompnayModule } from './company/company.module';
-import { TelegramModule } from './telegram/telegram.module';
 
 @Module({
   imports: [

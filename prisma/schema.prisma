@@ -52,23 +52,24 @@ model Company {
   name           String
   description    String?
   businessType   BusinessType
-  businessTerm   String?         // Термин/срок работы (если потребуется)
-  city           String?         // Город
-  street         String?         // Улица
-  workTime       String?         // Режим работы
-  holidays       String?         // Дни праздников или нерабочие дни
-  descriptionAI  String?         // AI-описание
-  logo           String?         // URL логотипа
-  calendar       String?         // Данные календаря (можно хранить в JSON, если потребуется)
-  analytics      String?         // Данные аналитики
-  telegram       String?         // Телеграм-аккаунт
-  aiText         String?         // Текст, сгенерированный ИИ
-  socials        String?         // Ссылки на социальные сети
-  delivery       String?         // Данные о доставке
+  businessTerm String?    // Термин/срок работы (если потребуется)
+  city         String?    // Город
+  street       String?    // Улица
+  workTime     String?    // Режим работы
+  holidays     String?    // Дни праздников или нерабочие дни
+  descriptionAI String?   // AI-описание
+  logo         String?    // URL логотипа
+  calendar     String?    // Данные календаря (можно хранить в JSON, если потребуется)
+  analytics    String?    // Данные аналитики
+  telegram     String?    // Телеграм-аккаунт
+  aiText       String?    // Текст, сгенерированный ИИ
+  socials      String?    // Ссылки на социальные сети
+  delivery     String?    // Данные о доставке
 
   members      CompanyMember[]
   branches     Branch[]
 }
+
 
 model CompanyMember {
   id        Int         @id @default(autoincrement())
@@ -91,7 +92,6 @@ model Branch {
   masters   Master[]
   tables    Table[]
   bookings  Booking[]
-  menu      Menu?   
 }
 
 model Master {
@@ -176,21 +176,4 @@ model Booking {
   table             Table?                    @relation(fields: [tableId], references: [id])
   tableId           Int?
   customFieldValues BookingCustomFieldValue[]
-}
-
-model Menu {
-  id       Int       @id @default(autoincrement())
-  title    String? 
-  branch   Branch    @relation(fields: [branchId], references: [id])
-  branchId Int       @unique  
-  items    MenuItem[]
-}
-
-model MenuItem {
-  id          Int     @id @default(autoincrement())
-  name        String
-  description String?
-  price       Float?
-  menu        Menu    @relation(fields: [menuId], references: [id])
-  menuId      Int
 }
