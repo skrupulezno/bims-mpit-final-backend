@@ -67,6 +67,23 @@ export class ServicesController {
     return serviceModule;
   }
 
+  @Post('/:businessId')
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  async createServiceForCompany(
+    @Param('businessId') businessId: string,
+    @Body() dto: CreateServiceDto,
+    @Req() req
+  ) {
+    const serviceModule = await this.prisma.module.create({
+      data: {
+        moduleType: dto.moduleType,
+        business: { connect: { id: businessId } },
+        customParameters: dto.customParameters,
+      },
+    });
+    return serviceModule;
+  }
+
   // Роут для обновления существующей услуги
   @Patch('/:serviceId')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
