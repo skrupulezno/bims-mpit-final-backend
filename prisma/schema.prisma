@@ -21,16 +21,14 @@ enum ModuleType {
 
 // Новый перечислимый тип для методов авторизации
 enum AuthProvider {
-  EMAIL
   TELEGRAM_MINIAPP
   TELEGRAM_OAUTH
 }
 
 model User {
   id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  email        String?      @unique
-  telegramId   String?      @unique
-  authProvider AuthProvider @default(EMAIL)
+  telegramId   String?  
+  authProvider AuthProvider @default(TELEGRAM_OAUTH)
   name         String?
   businesses   Business[]
   bookings     Booking[]
