@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -7,173 +7,133 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum CompanyRole {
-  ADMIN
-  STAFF
-}
-
 enum BusinessType {
-  BARBERSHOP
-  RESTAURANT
-  RETAIL
+  SERVICE     @map("Услуга")
+  REAL_ESTATE @map("Недвижимость")
+  CATERING    @map("Общепит")
 }
 
-enum ComponentType {
-  MASTER
-  TABLE
+enum ModuleType {
+  BOOKING     @map("booking")
+  MENU        @map("menu")
+  APPOINTMENT @map("appointment")
 }
 
-enum FieldType {
-  TEXT
-  NUMBER
-  SELECT
-  BOOLEAN
-}
-
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  CANCELLED
+// Новый перечислимый тип для методов авторизации
+enum AuthProvider {
+  EMAIL
+  TELEGRAM_MINIAPP
+  TELEGRAM_OAUTH
 }
 
 model User {
-  id           Int             @id @default(autoincrement())
-  email        String          @unique
-  passwordHash String
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  email        String?      @unique
+  telegramId   String?      @unique
+  authProvider AuthProvider @default(EMAIL)
   name         String?
-  tg_id        Int?            @unique
-  memberships  CompanyMember[]
+  businesses   Business[]
   bookings     Booking[]
-  Master       Master[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }
 
-model Company {
-  id             Int             @id @default(autoincrement())
-  name           String
-  description    String?
-  businessType   BusinessType
-  businessTerm String?    // Термин/срок работы (если потребуется)
-  city         String?    // Город
-  street       String?    // Улица
-  workTime     String?    // Режим работы
-  holidays     String?    // Дни праздников или нерабочие дни
-  descriptionAI String?   // AI-описание
-  logo         String?    // URL логотипа
-  calendar     String?    // Данные календаря (можно хранить в JSON, если потребуется)
-  analytics    String?    // Данные аналитики
-  telegram     String?    // Телеграм-аккаунт
-  aiText       String?    // Текст, сгенерированный ИИ
-  socials      String?    // Ссылки на социальные сети
-  delivery     String?    // Данные о доставке
-
-  members      CompanyMember[]
-  branches     Branch[]
+enum EmployeeRole {
+  STAFF
+  ADMIN
 }
 
-
-model CompanyMember {
-  id        Int         @id @default(autoincrement())
-  role      CompanyRole
-  user      User        @relation(fields: [userId], references: [id])
-  userId    Int
-  company   Company     @relation(fields: [companyId], references: [id])
-  companyId Int
-
-  @@unique([userId, companyId])
+model Employee {
+  id         String       @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  role       EmployeeRole
+  business   Business     @relation(fields: [businessId], references: [id])
+  businessId String       @db.ObjectId
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 }
 
-model Branch {
-  id        Int       @id @default(autoincrement())
-  name      String
-  address   String?
-  company   Company   @relation(fields: [companyId], references: [id])
-  companyId Int
-  services  Service[]
-  masters   Master[]
-  tables    Table[]
-  bookings  Booking[]
-}
-
-model Master {
-  id       Int       @id @default(autoincrement())
-  name     String
-  photoUrl String?
-  user     User?     @relation(fields: [userId], references: [id])
-  userId   Int?
-  branch   Branch    @relation(fields: [branchId], references: [id])
-  branchId Int
-  services Service[] @relation("ServiceMasters")
-
-  bookings Booking[]
-}
-
-model Table {
-  id       Int    @id @default(autoincrement())
-  label    String
-  seats    Int
-  branch   Branch @relation(fields: [branchId], references: [id])
-  branchId Int
-
-  bookings Booking[] 
-}
-
-model Service {
-  id           Int                @id @default(autoincrement())
+model Business {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
   name         String
   description  String?
-  durationMin  Int?
-  logo         String? 
-  price        Float?
-  branch       Branch             @relation(fields: [branchId], references: [id])
-  branchId     Int
-  masters      Master[]           @relation("ServiceMasters")
-  components   ServiceComponent[]
-  customFields CustomField[]
-  bookings     Booking[]
+  image        String?
+  type         BusinessType
+  theme        Json?
+  workingHours Json
+  owner        User       @relation(fields: [ownerId], references: [id])
+  ownerId      String     @db.ObjectId
+  modules      Module[]
+  employees    Employee[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
-model ServiceComponent {
-  id         Int           @id @default(autoincrement())
-  type       ComponentType
-  name       String?
-  isRequired Boolean       @default(true)
-  service    Service       @relation(fields: [serviceId], references: [id])
-  serviceId  Int
-}
 
-model CustomField {
-  id         Int                       @id @default(autoincrement())
-  label      String
-  fieldType  FieldType
-  isRequired Boolean                   @default(false)
-  options    String?
-  service    Service                   @relation(fields: [serviceId], references: [id])
-  serviceId  Int
-  values     BookingCustomFieldValue[]
-}
-
-model BookingCustomFieldValue {
-  id            Int         @id @default(autoincrement())
-  value         String
-  booking       Booking     @relation(fields: [bookingId], references: [id])
-  bookingId     Int
-  customField   CustomField @relation(fields: [customFieldId], references: [id])
-  customFieldId Int
+model Module {
+  id                String                   @id @default(auto()) @map("_id") @db.ObjectId
+  moduleType        ModuleType
+  bookingDetail     BookingModuleDetail?
+  menuDetail        MenuModuleDetail?
+  appointmentDetail AppointmentModuleDetail?
+  // Дополнительные произвольные параметры модуля в формате JSON
+  customParameters  Json?
+  business          Business                 @relation(fields: [businessId], references: [id])
+  businessId        String                   @db.ObjectId
+  bookings          Booking[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 }
 
 model Booking {
-  id                Int                       @id @default(autoincrement())
-  dateTime          DateTime
-  status            BookingStatus             @default(PENDING)
-  user              User                      @relation(fields: [userId], references: [id])
-  userId            Int
-  service           Service                   @relation(fields: [serviceId], references: [id])
-  serviceId         Int
-  branch            Branch                    @relation(fields: [branchId], references: [id])
-  branchId          Int
-  master            Master?                   @relation(fields: [masterId], references: [id])
-  masterId          Int?
-  table             Table?                    @relation(fields: [tableId], references: [id])
-  tableId           Int?
-  customFieldValues BookingCustomFieldValue[]
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  module      Module    @relation(fields: [moduleId], references: [id])
+  moduleId    String    @db.ObjectId
+  user        User?     @relation(fields: [userId], references: [id])
+  userId      String?   @db.ObjectId
+  // Время бронирования (например, выбранное пользователем время или дата бронирования)
+  bookingTime DateTime
+  // Данные формы бронирования (например, выбранные опции, дополнительные сведения)
+  formData    Json?
+  createdAt   DateTime  @default(now())
+  businessId  String?   @db.ObjectId
+}
+
+// Встроенные типы для модуля бронирования
+type BookingFormField {
+  fieldName String
+  type      String
+  required  Boolean
+}
+
+type BookingModuleDetail {
+  calendarEnabled Boolean
+  timeSlots       String[]
+  formFields      BookingFormField[]
+}
+
+// Встроенные типы для модуля меню
+type MenuItem {
+  name        String
+  description String?
+  price       Float
+}
+
+type MenuModuleDetail {
+  displayType String
+  categories  String[]
+  items       MenuItem[]
+}
+
+// Встроенные типы для модуля записи
+type AppointmentStaff {
+  name            String
+  staffIdentifier String?
+}
+
+type AppointmentModuleDetail {
+  service   String
+  duration  Int
+  timeSlots String[]
+  staff     AppointmentStaff[]
 }

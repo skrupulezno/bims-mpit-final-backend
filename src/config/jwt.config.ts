@@ -1,8 +1,13 @@
 import { JwtModuleOptions } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 
-export const getJwtConfig = async (
-  configService: ConfigService
-): Promise<JwtModuleOptions> => ({
-  secret: configService.get('JWT_SECRET')
-});
+export const getJwtConfig = async (): Promise<JwtModuleOptions> => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set!');
+  }
+  return {
+    secret,
+    // При необходимости можно добавить дополнительные опции, например:
+    // signOptions: { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || '120m' },
+  };
+};
