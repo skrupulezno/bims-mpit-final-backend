@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param, Req, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Req, UsePipes, ValidationPipe, UseGuards, Delete, UnauthorizedException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateServiceDto, UpdateServiceDto } from './dto/services.dto';
 import { IsMongoId } from 'class-validator';
@@ -99,5 +99,39 @@ export class ServicesController {
       },
     });
     return updatedService;
+  }
+
+  @Delete('/:serviceId')
+  async deleteService(@Param('serviceId') serviceId: string, @Req() req) {
+    // Проверка авторизации
+    if (!req.user || !req.user.id) {
+      throw new UnauthorizedException('Пользователь не авторизован');
+    }
+
+    // Поиск сервиса по id
+    const service = await this.prisma.module.findUnique({
+      where: { id: serviceId },
+    });
+    if (!service) {
+      throw new NotFoundException('Сервис не найден');
+    }
+
+    // Поиск бизнеса, которому принадлежит сервис, для проверки прав доступа
+    const business = await this.prisma.business.findUnique({
+      where: { id: service.businessId },
+    });
+    if (!business) {
+      throw new NotFoundException('Бизнес, связанный с сервисом, не найден');
+    }
+    if (business.ownerId !== req.user.id) {
+      throw new ForbiddenException('Нет прав для удаления сервиса данного бизнеса');
+    }
+
+    // Удаление сервиса
+    await this.prisma.module.delete({
+      where: { id: serviceId },
+    });
+
+    return { message: 'Сервис успешно удалён' };
   }
 }

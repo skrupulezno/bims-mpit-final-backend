@@ -9,7 +9,10 @@ import {
     ValidationPipe,
     Req,
     UnauthorizedException,
-    UseGuards 
+    UseGuards, 
+    Delete,
+    NotFoundException,
+    ForbiddenException
   } from '@nestjs/common';
   import { PrismaService } from 'src/prisma/prisma.service';
   import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
@@ -54,20 +57,63 @@ import {
       return newBusiness;
     }
   
-    // Получение бизнесов, где текущий пользователь является администратором (владелец)
     @Get('admin')
-    async getMyBusinesses(@Req() req) {
-      // Если req.user отсутствует — выбрасываем ошибку
+    async getMyBusinessesWithServices(@Req() req) {
       if (!req.user || !req.user.id) {
         throw new UnauthorizedException('Пользователь не авторизован');
       }
+      
+      // Получаем все бизнесы, где пользователь является владельцем
       const businesses = await this.prisma.business.findMany({
         where: {
           ownerId: req.user.id,
         },
       });
-      return businesses;
+
+      // Для каждого бизнеса получаем связанные сервисы из таблицы Module
+      const results = await Promise.all(businesses.map(async (business) => {
+        const services = await this.prisma.module.findMany({
+          where: {
+            businessId: business.id,
+          },
+        });
+        return {
+          ...business,
+          services,
+        };
+      }));
+
+      return results;
     }
+
+     // Метод для удаления бизнеса
+  @Delete('/:businessId')
+  async deleteBusiness(@Param('businessId') businessId: string, @Req() req) {
+    // Проверка авторизации
+    if (!req.user || !req.user.id) {
+      throw new UnauthorizedException('Пользователь не авторизован');
+    }
+
+    // Проверка существования бизнеса
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+    });
+    if (!business) {
+      throw new NotFoundException('Бизнес не найден');
+    }
+
+    // Проверка, что текущий пользователь является владельцем бизнеса
+    if (business.ownerId !== req.user.id) {
+      throw new ForbiddenException('Нет прав для удаления этого бизнеса');
+    }
+
+    // Удаление бизнеса
+    await this.prisma.business.delete({
+      where: { id: businessId },
+    });
+
+    return { message: 'Бизнес успешно удалён' };
+  }
   
     // Эндпоинт для получения всех бизнесов (не только тех, где пользователь является владельцем)
     @Get('all')

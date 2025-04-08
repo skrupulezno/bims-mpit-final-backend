@@ -74,9 +74,8 @@ model Module {
   bookingDetail     BookingModuleDetail?
   menuDetail        MenuModuleDetail?
   appointmentDetail AppointmentModuleDetail?
-  // Дополнительные произвольные параметры модуля в формате JSON
   customParameters  Json?
-  business          Business                 @relation(fields: [businessId], references: [id])
+  business          Business                 @relation(fields: [businessId], references: [id], onDelete: Cascade)
   businessId        String                   @db.ObjectId
   bookings          Booking[]
   createdAt         DateTime                 @default(now())
